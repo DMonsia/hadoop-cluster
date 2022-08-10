@@ -3,9 +3,11 @@
 Ce projet consiste à construire un cluster Hadoop avec des conteneurs Docker.
 Une fois le cluster créé, nous installons un ensemble d'outils de l'écosystème hadoop à savoir Spark, Sqoop, Hbase, Storm, … Puis les mettrons en œuvre via des mini projets de data science.
 
-Pour déployer le framework Hadoop, nous allons utiliser des contenaires Docker. 
+
 
 ## Preparation de l’environments
+Pour déployer le framework Hadoop, nous allons utiliser des contenaires Docker. 
+
 ### Installation de Docker
 
 Docker est un système de conteneurisation, c'est-à-dire d’isolation d’application et toutes ses dépendances dans un mini système d'exploitation (OS) appelé conteneur. 
@@ -97,4 +99,79 @@ Allez dans votre navigateur et entrer les URLs suivants:
 - `http://localhost:50070` permet d'afficher les informations de votre namenode (le master).
 * Dans le menu cliquez sur: `Utilities > Browse the file system` pour voir les fichiers créés
 - `http://localhost:8088` qui permet d'afficher les informations du resource manager de Yarn et visualiser le comportement des différents jobs.
+
+
+## Hadoop MapReduce
+
+Un Job Map-Reduce se compose principalement de deux types de programmes:
+
+- **Mappers** : permettent d’extraire les données nécessaires sous forme de clef/valeur, pour pouvoir ensuite les trier selon la clef
+
+- **Reducers** : prennent un ensemble de données triées selon leur clef, et effectuent le traitement nécessaire sur ces données (somme, moyenne, total...)
+
+
+### Wordcount
+Nous allons tester un programme MapReduce grâce à un exemple très simple, le WordCount, l'équivalent du HelloWorld pour les applications de traitement de données. Le Wordcount permet de calculer le nombre de mots dans un fichier donné, en décomposant le calcul en deux étapes:
+
+- L'étape de Mapping, qui permet de découper le texte en mots et de délivrer en sortie un flux textuel, où chaque ligne contient le mot trouvé, suivi de la valeur 1 (pour dire que le mot a été trouvé une fois).<br>
+L'implémentation python du mapping se trouve dans le dossier `mapreduce/mapper.py`
+- L'étape de Reducing, qui permet de faire la somme des 1 pour chaque mot, pour trouver le nombre total d'occurrences de ce mot dans le texte.
+
+
+## Hadoop & Mahout
+
+### installation
+
+Pour l'installation vous exécuterez les commandes ci-dessous dans le  master.
+
+- Téléchargement et installation
+```
+wget http://archive.apache.org/dist/mahout/0.13.0/apache-mahout-distribution-0.13.0.tar.gz &&\
+    tar -zxvf apache-mahout-distribution-0.13.0.tar.gz &&\
+    mv apache-mahout-distribution-0.13.0 /usr/local/mahout &&\
+    rm apache-mahout-distribution-0.13.0.tar.gz
+```
+- Configurations utiles 
+```
+export MAHOUT_HOME=/usr/local/mahout
+CLASSPATH=$CLASSPATH:/usr/local/mahout
+PATH=$PATH:/usr/local/mahout/bin
+```
+
+### Régression logistique avec mahout
+
+- Téléchargement des données iris.
+
+Pour plus de détails allez [ici](https://archive.ics.uci.edu/ml/datasets/iris)
+
+```
+wget https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data
+
+```
+
+- Entrainement
+
+```
+mahout trainlogistic \
+ --input iris.csv \
+ --output mahoutmodel \
+ --target target \
+ --categories 2 \
+ --predictors sepal.length sepal.width petal.length petal.width \
+ --types numeric numeric numeric numeric \
+ --features 4 --passes 100 --rate 0.1 --lambda 0.0001
+
+```
+
+- Évaluation
+
+```
+mahout runlogistic \
+--input iris.csv \
+--model mahoutmodel \
+--scores --auc --confusion > mahout_result.txt
+
+```
+
+### Classification de texte avec mahout
 
