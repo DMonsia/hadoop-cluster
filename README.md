@@ -56,7 +56,7 @@ Bref, c’est une machine ubuntu, amusez-vous.
 
 Créer une liste de dossier qui seront utile pour le dérouler du projet.
 ```
-mkdir mahout
+mkdir mahout mapreduce
 ```
 
 
@@ -126,9 +126,40 @@ L'implémentation python du mapping se trouve dans le dossier `mapreduce/mapper.
 
 - Copie du mapper et du reducer dans le master
 
+Ouvrez un terminal à la racine du projet et entrer la commande suivante. 
 ```
 docker cp mapreduce/* master:/root/mapreduce
 ```
+
+Ensuite entrer dans le master.
+```
+docker exec -it master bash
+cd mapreduce
+```
+
+- Execution du map
+
+```
+hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \
+-file /root/mapreduce/mapper.py -mapper mapper.py \
+-file /root/mapreduce/reducer.py -reducer reducer.py \
+-input /user/root/input/purchases.txt \
+-output /user/root/output \
+-verbose
+```
+
+- Execution du reduce 
+
+```
+hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \
+-mapper /root/mapreduce/mapper.py \
+-reducer /root/mapreduce/reducer.py \
+-input /user/root/input/purchases.txt \
+-output /user/root/output
+```
+
+Le résultat du map et du reduce se trouve dans le `dossier` output dans hdsf.
+
 
 ## Hadoop & Mahout
 
@@ -169,10 +200,6 @@ Ensuite entrer dans le master.
 - Entrainement
 
 ```
-docker cp iris.csv master:/root/mahout
-```
-
-```
  mahout trainlogistic \
  --input iris.csv \
  --output logit_model \
@@ -207,9 +234,17 @@ rm 20news-bydate.tar.gz
 
 - Préparation des données 
 
+Chargement des données dans hdfs dans le dossier `20news`.
+
 ```
 hdfs dfs -put 20news-bydate-test 20news
+```
+
+Transformation des données textuelles en données numériques basée sur la matricielle TF-IDF. 
+
+```
 mahout seqdirectory -i 20news -o 20newsdataseq
+
 mahout seq2sparse \
     -i 20newsdataseq/part-m-00000 \
     -o 20newsdataVec \
@@ -233,7 +268,7 @@ mahout split \
 ```
 mahout trainnb \
   -i 20newsdataVecTrain \
-  -o model \
+  -o nb_model \
   -li labelindex -ow -c 
 ```
 
@@ -242,6 +277,18 @@ mahout trainnb \
 ```
 mahout testnb \
   -i 20newsdataVecTest\
-  -m model \
+  -m nb_model \
   -l labelindex -ow -o mahout_nb_results
+```
+
+Le résultat de l’évaluation se trouve dans le système de fichier hdfs. Nous allons le télécharger dans le système de fichier de Ubuntu pour pouvoir le consulter. 
+
+```
+hdfs dfs -get mahout_nb_results
+```
+
+Pour copier le fichier sur notre machine local, tapez la commande ci-dessous dans votre terminal local.  
+
+```
+docker cp master:/root/20news/mahout_nb_results mahout_nb_results
 ```
