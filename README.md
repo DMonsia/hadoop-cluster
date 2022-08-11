@@ -54,6 +54,11 @@ Vous êtes à l'intérieur du conteneur. Vous pouvez l’explorer:
 - `cd` [path] : remplace path par le chemin vers le répertoire ou vous voulez vous rendre.
 Bref, c’est une machine ubuntu, amusez-vous.
 
+Créer une liste de dossier qui seront utile pour le dérouler du projet.
+```
+mkdir mahout
+```
+
 
 2. Démarrer hadoop et yarn
 Un script est fourni pour cela, appelé `start-hadoop.sh`. Lancer ce script.
@@ -62,6 +67,7 @@ Un script est fourni pour cela, appelé `start-hadoop.sh`. Lancer ce script.
 cd ~
 ls
 ```
+
 ```
 ./start-hadoop.sh
 ```
@@ -118,11 +124,17 @@ L'implémentation python du mapping se trouve dans le dossier `mapreduce/mapper.
 - L'étape de Reducing, qui permet de faire la somme des 1 pour chaque mot, pour trouver le nombre total d'occurrences de ce mot dans le texte.
 
 
+- Copie du mapper et du reducer dans le master
+
+```
+docker cp mapreduce/* master:/root/mapreduce
+```
+
 ## Hadoop & Mahout
 
 ### installation
 
-Pour l'installation vous exécuterez les commandes ci-dessous dans le  master.
+Pour l'installation vous exécuterez les commandes ci-dessous dans le master.
 
 - Téléchargement et installation
 ```
@@ -131,6 +143,7 @@ wget http://archive.apache.org/dist/mahout/0.13.0/apache-mahout-distribution-0.1
     mv apache-mahout-distribution-0.13.0 /usr/local/mahout &&\
     rm apache-mahout-distribution-0.13.0.tar.gz
 ```
+
 - Configurations utiles 
 ```
 export MAHOUT_HOME=/usr/local/mahout
@@ -140,21 +153,29 @@ PATH=$PATH:/usr/local/mahout/bin
 
 ### Régression logistique avec mahout
 
-- Téléchargement des données iris.
+- Téléchargement des données `iris.csv` dans le master.
 
-Pour plus de détails allez [ici](https://archive.ics.uci.edu/ml/datasets/iris)
+Copie des données dans le master.
+Pour cela allez dans le dossier `mahout/` situé à la racine du projet.
+Puis exécuter la commande suivante.
 
 ```
-wget https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data
-
+docker cp iris.csv master:/root/
 ```
+
+Ensuite entrer dans le master.
+
 
 - Entrainement
 
 ```
-mahout trainlogistic \
+docker cp iris.csv master:/root/mahout
+```
+
+```
+ mahout trainlogistic \
  --input iris.csv \
- --output mahoutmodel \
+ --output logit_model \
  --target target \
  --categories 2 \
  --predictors sepal.length sepal.width petal.length petal.width \
@@ -168,10 +189,59 @@ mahout trainlogistic \
 ```
 mahout runlogistic \
 --input iris.csv \
---model mahoutmodel \
---scores --auc --confusion > mahout_result.txt
-
+--model logit_model \
+--scores --auc --confusion > iris_eval_result.txt
 ```
 
-### Classification de texte avec mahout
+### Classification de texte avec mahout (mode cluster)
 
+Entrer dans le master.
+
+```
+mkdir 20news
+cd 20news
+wget http://people.csail.mit.edu/jrennie/20Newsgroups/20news-bydate.tar.gz
+tar xzvf 20news-bydate.tar.gz
+rm 20news-bydate.tar.gz
+```
+
+- Préparation des données 
+
+```
+hdfs dfs -put 20news-bydate-test 20news
+mahout seqdirectory -i 20news -o 20newsdataseq
+mahout seq2sparse \
+    -i 20newsdataseq/part-m-00000 \
+    -o 20newsdataVec \
+    -lnorm -nv -wt tfidf
+```
+
+- Création des données d'entraînement et de test
+
+```
+mahout split \
+  -i 20newsdataVec/tfidf-vectors \
+  --trainingOutput 20newsdataVecTrain \
+  --testOutput 20newsdataVecTest \
+  --randomSelectionPct 20 \
+  --overwrite \
+  --sequenceFiles -xm sequential
+```
+
+- Entrainement
+
+```
+mahout trainnb \
+  -i 20newsdataVecTrain \
+  -o model \
+  -li labelindex -ow -c 
+```
+
+- Évaluation
+
+```
+mahout testnb \
+  -i 20newsdataVecTest\
+  -m model \
+  -l labelindex -ow -o mahout_nb_results
+```
