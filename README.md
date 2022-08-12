@@ -56,7 +56,7 @@ Bref, c’est une machine ubuntu, amusez-vous.
 
 Créer une liste de dossier qui seront utile pour le dérouler du projet.
 ```
-mkdir mahout mapreduce
+mkdir mapreduce spark mahout
 ```
 
 
@@ -144,7 +144,7 @@ hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \
 -file /root/mapreduce/mapper.py -mapper mapper.py \
 -file /root/mapreduce/reducer.py -reducer reducer.py \
 -input /user/root/input/purchases.txt \
--output /user/root/output \
+-output /user/root/mr_output \
 -verbose
 ```
 
@@ -155,11 +155,46 @@ hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \
 -mapper /root/mapreduce/mapper.py \
 -reducer /root/mapreduce/reducer.py \
 -input /user/root/input/purchases.txt \
--output /user/root/output
+-output /user/root/mr_output
 ```
 
-Le résultat du map et du reduce se trouve dans le `dossier` output dans hdsf.
+Visualisez le job dans le navigateur `http://localhost:8088`.
 
+Le résultat du map et du reduce se trouve dans le dossier `mr_output` dans hdsf.
+
+
+## Hadoop & Spark
+
+### Wordcount
+
+Nous ré-exécutons un wordcount avec spark dans le cluster hadoop. 
+
+- Copie du mapper et du reducer dans le master
+
+Ouvrez un terminal à la racine du projet et entrer la commande suivante.
+```
+docker cp spark/* master:/root/spark
+```
+
+Ensuite entrer dans le master.
+```
+docker exec -it master bash
+cd spark
+```
+- Exécution du job spark
+
+```
+spark-submit --master yarn \
+             --deploy-mode cluster \
+             --driver-memory 4g \
+             --executor-memory 2g \
+             --executor-cores 1 \
+             spark_wordcount.py /user/root/input/purchases.txt /user/root/spark_output
+```
+
+Visualisez le job dans le navigateur `http://localhost:8088`.
+
+Le résultat du map et du reduce se trouve dans le dossier `spark_output` dans hdsf.
 
 ## Hadoop & Mahout
 
@@ -182,7 +217,7 @@ CLASSPATH=$CLASSPATH:/usr/local/mahout
 PATH=$PATH:/usr/local/mahout/bin
 ```
 
-### Régression logistique avec mahout
+### Régression logistique avec mahout (single mode)
 
 - Téléchargement des données `iris.csv` dans le master.
 
@@ -250,6 +285,7 @@ mahout seq2sparse \
     -o 20newsdataVec \
     -lnorm -nv -wt tfidf
 ```
+Visualisez le job dans le navigateur `http://localhost:8088`.
 
 - Création des données d'entraînement et de test
 
@@ -271,6 +307,7 @@ mahout trainnb \
   -o nb_model \
   -li labelindex -ow -c 
 ```
+Visualisez le job dans le navigateur `http://localhost:8088`.
 
 - Évaluation
 
@@ -280,6 +317,7 @@ mahout testnb \
   -m nb_model \
   -l labelindex -ow -o mahout_nb_results
 ```
+Visualisez le job dans le navigateur `http://localhost:8088`.
 
 Le résultat de l’évaluation se trouve dans le système de fichier hdfs. Nous allons le télécharger dans le système de fichier de Ubuntu pour pouvoir le consulter. 
 
