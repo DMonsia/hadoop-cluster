@@ -97,7 +97,7 @@ hadoop fs -mkdir -p /user/root/input
  ```
  hdfs dfs -ls input
  ```
-Cliquez [ici](https://images.linoxide.com/hadoop-hdfs-commands-cheatsheet.pdf) pour plus de commandes hadoop
+Cliquez [ici](https://github.com/san089/Cloudera_Material/blob/master/hadoop-hdfs-commands-cheatsheet.pdf) pour plus de commandes hadoop
 
 ### Interfaces web pour Hadoop¶
 Hadoop offre plusieurs interfaces web pour pouvoir observer le comportement de ses différentes composantes.
